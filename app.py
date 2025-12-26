@@ -41,6 +41,24 @@ llm = ChatGoogleGenerativeAI(
 
 embedder = GoogleGenerativeAIEmbeddings(model="text-embedding-004",task_type="RETRIEVAL_DOCUMENT")
 
+def clean_texts(text):
+
+    fixes = {
+        '\ufb00': 'ff',
+        '\ufb01': 'fi', 
+        '\ufb02': 'fl',
+        '\ufb03': 'ffi',
+        '\ufb04': 'ffl',
+        '\u019f': 't',
+        '\u014c': 'ft',
+        '\u01a9': 'tt',
+    }
+    
+    for old, new in fixes.items():
+        text = text.replace(old, new)
+    
+    return text
+
 @app.route('/', methods=['GET'])
 def home():
     return "WELCOME to LEGAL RAG SERVICE"
@@ -52,8 +70,8 @@ def ingest():
     documents = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,
-        chunk_overlap=40
+        chunk_size=700,
+        chunk_overlap=78
     )
     chunks = splitter.split_documents(documents)
 
@@ -66,7 +84,7 @@ def ingest():
     for idx, (doc, vec) in enumerate(zip(chunks, embeddings)):
         vector_id = f"{doc.metadata.get('doc_id', 'doc')}{idx}"
 
-        vectors.append((vector_id, vec, {"text": doc.page_content}))
+        vectors.append((vector_id, vec, {"text": clean_texts(doc.page_content)}))
 
         if len(vectors) >= batch_size:
             index.upsert(vectors)
@@ -97,7 +115,7 @@ def query():
         include_metadata=True
     )
 
-    context = "\n\n".join(
+    context = " ".join(
         match["metadata"]["text"] for match in result["matches"]
     )
 
@@ -121,10 +139,13 @@ def query():
         generation.update(output=output)
 
     langfuse.flush()
+    
+    cleaned_output= output.replace('\n', '')
+    cleaned_context = context.replace('\n', '')
 
     return jsonify({
-        "answer": output,
-        "context": context
+        "answer": cleaned_output,
+        "context": cleaned_context
     })
 
 if __name__ == "__main__":
