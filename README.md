@@ -37,5 +37,9 @@ This is a flask based RAG application for employees agreement. This is built usi
 
 2. 
 
+![alt text](images/output_2.png)
 
+3.
+
+![alt text](images/output_3.png)
 
